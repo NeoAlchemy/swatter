@@ -12,9 +12,13 @@ canvas.focus();
 const COLOR_BACKGROUND: string = '#000';
 const SWATTER_COLOR: string = '#FFF';
 const SWATTER_WIDTH: number = 40;
-const SWATTER_LENGTH: number = 40;
+const SWATTER_HEIGHT: number = 40;
 const BUG_COLOR: string = '#F00';
 const BUG_RADIUS: number = 10;
+
+/*
+ * MINI FRAMEOWRK.
+ */
 
 // utility functions to use everywhere
 class Util {
@@ -26,98 +30,55 @@ class Util {
   }
 }
 
-// Sprite
-class Swatter {
+// Input Controller to use everywhere
+class InputController {
   public x: number;
   public y: number;
-  private inputController: CustomInputController;
 
-  // initial state
-  constructor() {
-    this.inputController = new CustomInputController();
+  constructor() {}
+
+  update(gameObject: GameObject) {}
+}
+
+class GameObject {
+  public x: number;
+  public y: number;
+  public width: number;
+  public height: number;
+
+  private inputController: InputController;
+
+  constructor(inputController?) {
+    this.inputController = inputController;
   }
 
-  // update the state
   update() {
-    this.inputController.update(this);
+    this.inputController?.update(this);
   }
 
-  // display the results of state
-  render() {
-    ctx.fillStyle = SWATTER_COLOR;
-    ctx.fillRect(this.x, this.y, SWATTER_WIDTH, SWATTER_LENGTH);
-  }
-}
-
-// Sprite
-class Bug {
-  public x: number;
-  public y: number;
-
-  // initial state
-  constructor() {
-    let bugLength = BUG_RADIUS * 2;
-    this.x = Util.getRandomInt(bugLength, 400 - bugLength);
-    this.y = Util.getRandomInt(bugLength, 400 - bugLength);
-  }
-
-  // update the state
-  update() {}
-
-  // display the results of state
-  render() {
-    ctx.fillStyle = BUG_COLOR;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, BUG_RADIUS, 0, 2 * Math.PI);
-    ctx.fill();
-  }
-
-  reset() {
-    let bugLength = BUG_RADIUS * 2;
-    this.x = Util.getRandomInt(bugLength, 400 - bugLength);
-    this.y = Util.getRandomInt(bugLength, 400 - bugLength);
-  }
-}
-
-class CustomInputController {
-  private x: number;
-  private y: number;
-
-  constructor() {
-    document.addEventListener(
-      'mousemove',
-      (evt) => {
-        let rect = canvas.getBoundingClientRect();
-        this.x = evt.clientX - rect.left;
-        this.y = evt.clientY - rect.top;
-      },
-      false
-    );
-  }
-
-  update(swatter: Swatter) {
-    swatter.x = this.x - SWATTER_WIDTH / 2;
-    swatter.y = this.y - SWATTER_LENGTH / 2;
-  }
+  render() {}
 }
 
 class Scene {
-  private children: Array<any>;
+  public children: Array<any>;
+  public physics: Physics;
 
   constructor() {
     this.children = [];
+    this.physics = new Physics();
   }
 
-  add(gameObject: any) {
+  add(gameObject: GameObject) {
     this.children.push(gameObject);
   }
 
   create() {}
 
   update() {
-    for (let index in this.children) {
-      this.children[index].update();
+    for (let gameObject of this.children) {
+      gameObject.update();
     }
+    this.physics.update();
   }
 
   render() {
@@ -126,51 +87,58 @@ class Scene {
     ctx.fillStyle = COLOR_BACKGROUND;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    for (let index in this.children) {
-      this.children[index].render();
+    for (let gameObject of this.children) {
+      gameObject.render();
     }
   }
 }
 
-class MainLevel extends Scene {
-  private swatter: Swatter;
-  private bug: Bug;
+class Physics {
+  private register: Array<any> = [];
+  private objectA: GameObject;
+  private objectB: GameObject;
 
-  constructor() {
-    super();
-  }
+  constructor() {}
 
-  create() {
-    this.swatter = new Swatter();
-    this.add(this.swatter);
-
-    this.bug = new Bug();
-    this.add(this.bug);
+  onCollide(
+    objectA: GameObject,
+    objectB: GameObject,
+    callback: Function,
+    scope: any
+  ) {
+    if (
+      objectA &&
+      objectB &&
+      objectA.x > 0 &&
+      objectA.x < canvas.width &&
+      objectA.y > 0 &&
+      objectA.y < canvas.height &&
+      objectB.x > 0 &&
+      objectB.x < canvas.width &&
+      objectB.y > 0 &&
+      objectB.y < canvas.height
+    ) {
+      this.register.push({
+        objectA: objectA,
+        objectB: objectB,
+        callback: callback,
+        scope: scope,
+      });
+    }
   }
 
   update() {
-    super.update();
-
-    // collision and behavior functions
-    this.onSwatterHitBug(this.bug, this.swatter);
-  }
-
-  render() {
-    super.render();
-  }
-
-  onSwatterHitBug(bug: Bug, swatter: Swatter) {
-    if (
-      bug &&
-      swatter &&
-      bug.x > 0 &&
-      bug.x < canvas.height &&
-      bug.x >= swatter.x &&
-      bug.x <= swatter.x + SWATTER_LENGTH &&
-      bug.y >= swatter.y &&
-      bug.y <= swatter.y + SWATTER_WIDTH
-    ) {
-      this.bug.reset();
+    for (let collisionEntry of this.register) {
+      if (
+        collisionEntry.objectA.x >= collisionEntry.objectB.x &&
+        collisionEntry.objectA.x <=
+          collisionEntry.objectB.x + collisionEntry.objectB.width &&
+        collisionEntry.objectA.y >= collisionEntry.objectB.y &&
+        collisionEntry.objectA.y <=
+          collisionEntry.objectB.y + collisionEntry.objectB.height
+      ) {
+        collisionEntry.callback.bind(collisionEntry.scope).apply();
+      }
     }
   }
 }
@@ -179,7 +147,7 @@ class Game {
   private scene: Scene;
   private id: number;
 
-  constructor(scene: any) {
+  constructor(scene: Scene) {
     this.scene = scene;
     this.scene.create();
     //Setup Components
@@ -201,5 +169,116 @@ class Game {
   }
 }
 
+/*
+ *  SPECIFIC GAME ELEMENTS
+ */
+
+// Sprite
+class Swatter extends GameObject {
+  // initial state
+  constructor() {
+    super(new SwatterInputController());
+    this.width = SWATTER_WIDTH;
+    this.height = SWATTER_HEIGHT;
+  }
+
+  // update the state
+  update() {
+    super.update();
+  }
+
+  // display the results of state
+  render() {
+    ctx.fillStyle = SWATTER_COLOR;
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+  }
+}
+
+// Sprite
+class Bug extends GameObject {
+  // initial state
+  constructor() {
+    super();
+    let bugLength = BUG_RADIUS * 2;
+    this.x = Util.getRandomInt(bugLength, canvas.width - bugLength);
+    this.y = Util.getRandomInt(bugLength, canvas.height - bugLength);
+    this.width = BUG_RADIUS * 2;
+    this.height = BUG_RADIUS * 2;
+  }
+
+  // update the state
+  update() {
+    super.update();
+  }
+
+  // display the results of state
+  render() {
+    ctx.fillStyle = BUG_COLOR;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, BUG_RADIUS, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+
+  reset() {
+    let bugLength = BUG_RADIUS * 2;
+    this.x = Util.getRandomInt(bugLength, canvas.width - bugLength);
+    this.y = Util.getRandomInt(bugLength, canvas.height - bugLength);
+  }
+}
+
+class SwatterInputController extends InputController {
+  constructor() {
+    super();
+    document.addEventListener(
+      'mousemove',
+      (evt) => {
+        let rect = canvas.getBoundingClientRect();
+        this.x = evt.clientX - rect.left;
+        this.y = evt.clientY - rect.top;
+      },
+      false
+    );
+  }
+
+  update(gameObject: GameObject) {
+    gameObject.x = this.x - gameObject.width / 2;
+    gameObject.y = this.y - gameObject.height / 2;
+  }
+}
+
+class MainLevel extends Scene {
+  private swatter: Swatter;
+  private bug: Bug;
+
+  constructor() {
+    super();
+  }
+
+  create() {
+    this.bug = new Bug();
+    this.add(this.bug);
+
+    this.swatter = new Swatter();
+    this.add(this.swatter);
+  }
+
+  update() {
+    super.update();
+
+    this.physics.onCollide(this.bug, this.swatter, this.onSwatterHitBug, this);
+  }
+
+  render() {
+    super.render();
+  }
+
+  onSwatterHitBug() {
+    this.bug.reset();
+  }
+}
+
+/**
+ * Kick off Game
+ */
 let mainLevel = new MainLevel();
 let game = new Game(mainLevel);
