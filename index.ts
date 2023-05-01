@@ -168,6 +168,7 @@ const SWATTER_WIDTH: number = 40;
 const SWATTER_HEIGHT: number = 40;
 const BUG_COLOR: string = '#F00';
 const BUG_RADIUS: number = 10;
+const SCORE_COLOR: string = '#FFF';
 
 /* --------------------------------- ENTITIES ------------------------------- */
 class Swatter extends GameObject {
