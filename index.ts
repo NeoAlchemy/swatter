@@ -1,5 +1,8 @@
 // Import stylesheets
 import './style.css';
+/* -------------------------------------------------------------------------- */
+/*                                MINI FRAMEWORK.                             */
+/* -------------------------------------------------------------------------- */
 
 // boiler plate setup the canvas for the game
 var canvas = <HTMLCanvasElement>document.getElementById('canvas');
@@ -7,18 +10,6 @@ var ctx = canvas.getContext('2d');
 canvas.setAttribute('tabindex', '1');
 canvas.style.outline = 'none';
 canvas.focus();
-
-// manipuating game mechanics
-const COLOR_BACKGROUND: string = '#000';
-const SWATTER_COLOR: string = '#FFF';
-const SWATTER_WIDTH: number = 40;
-const SWATTER_HEIGHT: number = 40;
-const BUG_COLOR: string = '#F00';
-const BUG_RADIUS: number = 10;
-
-/*
- * MINI FRAMEOWRK.
- */
 
 // utility functions to use everywhere
 class Util {
@@ -59,6 +50,53 @@ class GameObject {
   render() {}
 }
 
+class Physics {
+  private register: Array<any> = [];
+  private objectA: GameObject;
+  private objectB: GameObject;
+
+  constructor() {}
+
+  onCollide(
+    objectA: GameObject,
+    objectB: GameObject,
+    callback: Function,
+    scope: any
+  ) {
+    if (objectA && objectB) {
+      this.register.push({
+        objectA: objectA,
+        objectB: objectB,
+        callback: callback,
+        scope: scope,
+      });
+    }
+  }
+
+  update() {
+    for (let collisionEntry of this.register) {
+      if (
+        collisionEntry.objectA.x > 0 &&
+        collisionEntry.objectA.x < canvas.width &&
+        collisionEntry.objectA.y > 0 &&
+        collisionEntry.objectA.y < canvas.height &&
+        collisionEntry.objectB.x > 0 &&
+        collisionEntry.objectB.x < canvas.width &&
+        collisionEntry.objectB.y > 0 &&
+        collisionEntry.objectB.y < canvas.height &&
+        collisionEntry.objectA.x >= collisionEntry.objectB.x &&
+        collisionEntry.objectA.x <=
+          collisionEntry.objectB.x + collisionEntry.objectB.width &&
+        collisionEntry.objectA.y >= collisionEntry.objectB.y &&
+        collisionEntry.objectA.y <=
+          collisionEntry.objectB.y + collisionEntry.objectB.height
+      ) {
+        collisionEntry.callback.bind(collisionEntry.scope).apply();
+      }
+    }
+  }
+}
+
 class Scene {
   public children: Array<any>;
   public physics: Physics;
@@ -93,56 +131,6 @@ class Scene {
   }
 }
 
-class Physics {
-  private register: Array<any> = [];
-  private objectA: GameObject;
-  private objectB: GameObject;
-
-  constructor() {}
-
-  onCollide(
-    objectA: GameObject,
-    objectB: GameObject,
-    callback: Function,
-    scope: any
-  ) {
-    if (
-      objectA &&
-      objectB &&
-      objectA.x > 0 &&
-      objectA.x < canvas.width &&
-      objectA.y > 0 &&
-      objectA.y < canvas.height &&
-      objectB.x > 0 &&
-      objectB.x < canvas.width &&
-      objectB.y > 0 &&
-      objectB.y < canvas.height
-    ) {
-      this.register.push({
-        objectA: objectA,
-        objectB: objectB,
-        callback: callback,
-        scope: scope,
-      });
-    }
-  }
-
-  update() {
-    for (let collisionEntry of this.register) {
-      if (
-        collisionEntry.objectA.x >= collisionEntry.objectB.x &&
-        collisionEntry.objectA.x <=
-          collisionEntry.objectB.x + collisionEntry.objectB.width &&
-        collisionEntry.objectA.y >= collisionEntry.objectB.y &&
-        collisionEntry.objectA.y <=
-          collisionEntry.objectB.y + collisionEntry.objectB.height
-      ) {
-        collisionEntry.callback.bind(collisionEntry.scope).apply();
-      }
-    }
-  }
-}
-
 class Game {
   private scene: Scene;
   private id: number;
@@ -169,11 +157,19 @@ class Game {
   }
 }
 
-/*
- *  SPECIFIC GAME ELEMENTS
- */
+/* -------------------------------------------------------------------------- */
+/*                               GAME SPECIFIC CODE                           */
+/* -------------------------------------------------------------------------- */
 
-// Sprite
+/* ------------------------------ GAME MECHANICS ---------------------------- */
+const COLOR_BACKGROUND: string = '#000';
+const SWATTER_COLOR: string = '#FFF';
+const SWATTER_WIDTH: number = 40;
+const SWATTER_HEIGHT: number = 40;
+const BUG_COLOR: string = '#F00';
+const BUG_RADIUS: number = 10;
+
+/* --------------------------------- ENTITIES ------------------------------- */
 class Swatter extends GameObject {
   // initial state
   constructor() {
@@ -189,6 +185,8 @@ class Swatter extends GameObject {
 
   // display the results of state
   render() {
+    super.render();
+
     ctx.fillStyle = SWATTER_COLOR;
     ctx.fillRect(this.x, this.y, this.width, this.height);
   }
@@ -213,6 +211,8 @@ class Bug extends GameObject {
 
   // display the results of state
   render() {
+    super.render();
+
     ctx.fillStyle = BUG_COLOR;
     ctx.beginPath();
     ctx.arc(this.x, this.y, BUG_RADIUS, 0, 2 * Math.PI);
@@ -225,6 +225,8 @@ class Bug extends GameObject {
     this.y = Util.getRandomInt(bugLength, canvas.height - bugLength);
   }
 }
+
+/* ------------------------------- InputController  ----------------------------- */
 
 class SwatterInputController extends InputController {
   constructor() {
@@ -246,6 +248,7 @@ class SwatterInputController extends InputController {
   }
 }
 
+/* --------------------------------- SCENE ------------------------------- */
 class MainLevel extends Scene {
   private swatter: Swatter;
   private bug: Bug;
@@ -260,12 +263,12 @@ class MainLevel extends Scene {
 
     this.swatter = new Swatter();
     this.add(this.swatter);
+
+    this.physics.onCollide(this.bug, this.swatter, this.onSwatterHitBug, this);
   }
 
   update() {
     super.update();
-
-    this.physics.onCollide(this.bug, this.swatter, this.onSwatterHitBug, this);
   }
 
   render() {
@@ -277,8 +280,8 @@ class MainLevel extends Scene {
   }
 }
 
-/**
- * Kick off Game
- */
+/* -------------------------------------------------------------------------- */
+/*                                RUN GAME.                                   */
+/* -------------------------------------------------------------------------- */
 let mainLevel = new MainLevel();
 let game = new Game(mainLevel);
