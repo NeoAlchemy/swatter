@@ -51,7 +51,8 @@ class GameObject {
 }
 
 class Physics {
-  private register: Array<any> = [];
+  private gameObjectCollisionRegister: Array<any> = [];
+  private wallCollisionRegister: Array<any> = [];
   private objectA: GameObject;
   private objectB: GameObject;
 
@@ -64,7 +65,7 @@ class Physics {
     scope: any
   ) {
     if (objectA && objectB) {
-      this.register.push({
+      this.gameObjectCollisionRegister.push({
         objectA: objectA,
         objectB: objectB,
         callback: callback,
@@ -73,8 +74,18 @@ class Physics {
     }
   }
 
+  onCollideWalls(objectA: GameObject, callback: Function, scope: any) {
+    if (objectA) {
+      this.wallCollisionRegister.push({
+        objectA: objectA,
+        callback: callback,
+        scope: scope,
+      });
+    }
+  }
+
   update() {
-    for (let collisionEntry of this.register) {
+    for (let collisionEntry of this.gameObjectCollisionRegister) {
       if (
         collisionEntry.objectA.x > 0 &&
         collisionEntry.objectA.x < canvas.width &&
@@ -92,6 +103,16 @@ class Physics {
           collisionEntry.objectB.y + collisionEntry.objectB.height
       ) {
         collisionEntry.callback.bind(collisionEntry.scope).apply();
+      }
+    }
+    for (let wallCollisionEntry of this.wallCollisionRegister) {
+      if (
+        wallCollisionEntry.objectA.y < wallCollisionEntry.objectA.height ||
+        wallCollisionEntry.objectA.y > canvas.height ||
+        wallCollisionEntry.objectA.x < wallCollisionEntry.objectA.width ||
+        wallCollisionEntry.objectA.x > canvas.width
+      ) {
+        wallCollisionEntry.callback.bind(wallCollisionEntry.scope).apply();
       }
     }
   }
